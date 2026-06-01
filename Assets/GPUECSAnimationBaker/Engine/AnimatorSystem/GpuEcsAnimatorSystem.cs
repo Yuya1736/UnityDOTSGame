@@ -24,7 +24,7 @@ namespace GPUECSAnimationBaker.Engine.AnimatorSystem
             }.ScheduleParallel(state.Dependency);
         }
 
-        [BurstCompile]
+        //[BurstCompile]
         private partial struct GpuEcsAnimatorJob : IJobEntity
         {
             public EntityCommandBuffer.ParallelWriter ecb;
@@ -46,6 +46,7 @@ namespace GPUECSAnimationBaker.Engine.AnimatorSystem
                 [ChunkIndexInQuery] int sortKey, Entity gpuEcsAnimatorEntity)
             {
                 gpuEcsAnimatorEventBuffer.Clear();
+                UnityEngine.Debug.Log($"[AnimJob] entity={gpuEcsAnimatorEntity.Index} animID={gpuEcsAnimatorControl.animatorInfo.animationID} initialized={gpuEcsAnimatorInitialized.initialized} stopped={gpuEcsAnimatorState.stoppedCurrent} ctrlState={gpuEcsAnimatorControlState.state}");
                 if (!gpuEcsAnimatorInitialized.initialized )
                 {
                     // We switch immediately to the first animation, no transition
