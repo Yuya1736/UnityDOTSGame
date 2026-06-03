@@ -46,7 +46,7 @@ namespace GPUECSAnimationBaker.Engine.AnimatorSystem
                 [ChunkIndexInQuery] int sortKey, Entity gpuEcsAnimatorEntity)
             {
                 gpuEcsAnimatorEventBuffer.Clear();
-                UnityEngine.Debug.Log($"[AnimJob] entity={gpuEcsAnimatorEntity.Index} animID={gpuEcsAnimatorControl.animatorInfo.animationID} initialized={gpuEcsAnimatorInitialized.initialized} stopped={gpuEcsAnimatorState.stoppedCurrent} ctrlState={gpuEcsAnimatorControlState.state}");
+                //UnityEngine.Debug.Log($"[AnimJob] entity={gpuEcsAnimatorEntity.Index} animID={gpuEcsAnimatorControl.animatorInfo.animationID} initialized={gpuEcsAnimatorInitialized.initialized} stopped={gpuEcsAnimatorState.stoppedCurrent} ctrlState={gpuEcsAnimatorControlState.state}");
                 if (!gpuEcsAnimatorInitialized.initialized )
                 {
                     // We switch immediately to the first animation, no transition
