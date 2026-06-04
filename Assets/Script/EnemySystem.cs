@@ -52,6 +52,31 @@ public partial class EnemySystem : SystemBase
         foreach (var entity in entities)
         {
             AgentComponent agentComponentData = entityManager.GetComponentData<AgentComponent>(entity);
+            if (agentComponentData.triggerDie)
+            {
+                agentComponentData.triggerDie = false;
+                agentComponentData.state = 3;
+                agentComponentData.dieTimer = 10f;
+                entityManager.SetComponentData(entity, agentComponentData);
+
+                if (etLst.TryGetValue(agentComponentData.global_id, out var dyingEntity))
+                {
+                    dyingEntity.Play(ref entityManager, AnimationIds1001.die.GetHashCode());
+                    dyingEntity.agent.maxSpeed = 0;
+                    dyingEntity.Dispose();
+                    etLst.Remove(agentComponentData.global_id);
+                }
+                continue;
+            }
+            if (agentComponentData.state == 3)
+            {
+                agentComponentData.dieTimer -= deltaTime;
+                if (agentComponentData.dieTimer <= 0f)
+                    ecb.DestroyEntity(entity);
+                else
+                    entityManager.SetComponentData(entity, agentComponentData);
+                continue;
+            }
             if (agentComponentData.state == 0)
             {
                 var lt = entityManager.GetComponentData<LocalTransform>(entity);
@@ -80,6 +105,7 @@ public partial class EnemySystem : SystemBase
                        new NativeArray<float3>(1, Allocator.Persistent), lt,
                        entityManager.GetComponentData<GpuEcsAnimatorStateComponent>(entity), agentComponentData.unit_id);
                 etLst.Add(xx.GetInstanceID(), xx);
+                WorldUnitManager.Instance.Set(xx);
                 xx.Play(ref entityManager, AnimationIds1001.run.GetHashCode());
             }
             else if (agentComponentData.state == 1)
@@ -242,6 +268,7 @@ public class AIEntity
                 localTransform.Rotation = Unity.Mathematics.quaternion.LookRotation(r1, Vector3.up);
                 localTransform.Position = localTransform.Position + localTransform.Forward() * Time.deltaTime * agent.maxSpeed;
                 ecb.SetComponent(entity, localTransform);
+                UpdateGrild();
             }
 
         }

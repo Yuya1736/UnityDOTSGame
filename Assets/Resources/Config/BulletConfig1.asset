@@ -13,11 +13,13 @@ MonoBehaviour:
   m_Name: BulletConfig1
   m_EditorClassIdentifier: 
   bulletType: 1
-  bulletPrefab: {fileID: 0}
-  hitEffect: {fileID: 0}
+  hitEffect: {fileID: 870186701938298508, guid: 8c0517494d03bee479ef7a44ef1bf14c,
+    type: 3}
   explosionEffect: {fileID: 0}
   explosionRadius: 3
   bulletCount: 1
   spreadAngle: 0
   bulletSpeed: 20
-  bulletLifetime: 5
+  bulletLifetime: 3
+  damage: 50
+  hitRadius: 2

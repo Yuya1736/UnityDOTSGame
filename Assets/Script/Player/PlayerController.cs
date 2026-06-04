@@ -1,5 +1,6 @@
 using JKFrame;
 using RootMotion.FinalIK;
+using Unity.Mathematics;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour, IStateMachineOwner
@@ -19,12 +20,19 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
     private const string shootAnimName = "shoot";
     private int shootAnimHash;
 
+    private BulletSpawner _bulletSpawner;
+    private bool _shootPending;
+    private float _shootTimer;
+    [Header("射击延迟（秒，匹配动画出枪帧）")]
+    public float shootDelay = 0.15f;
+
     void Start()
     {
         aimController = GetComponent<AimController>();
         animator = GetComponent<Animator>();
         shootAnimHash = Animator.StringToHash(shootAnimName);
         cc = GetComponent<CharacterController>();
+        _bulletSpawner = GetComponent<BulletSpawner>();
         stateMachine.Init(this);
         ChangeState(PlayerState.Idle);
     }
@@ -32,19 +40,39 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
     void Update()
     {
         moveDir = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-        
 
         if (Input.GetMouseButtonDown(0)) animator.SetTrigger("shoot");
-        if(IsShooting())
+
+        if (IsShooting())
         {
             aimController.weight = 1;
             aimController.target = aimTarget;
+
+            if (!_shootPending)
+            {
+                _shootPending = true;
+                _shootTimer = shootDelay;
+            }
         }
         else
         {
             aimController.target = null;
         }
 
+        if (_shootPending)
+        {
+            _shootTimer -= Time.deltaTime;
+            if (_shootTimer <= 0f)
+            {
+                _shootPending = false;
+                if (_bulletSpawner != null && aimTarget != null)
+                {
+                    float3 dir = math.normalizesafe((float3)aimTarget.position - (float3)transform.position);
+                    dir.y = 0;
+                    _bulletSpawner.Fire(dir);
+                }
+            }
+        }
     }
 
     public void ChangeState(PlayerState state)

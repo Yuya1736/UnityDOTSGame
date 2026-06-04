@@ -3,27 +3,24 @@ using Sirenix.OdinInspector;
 
 public enum BulletType
 {
-    普通子弹 = 1,
-    爆炸子弹 = 2,
+    Normal = 1,
+    Explosive = 2,
 }
 
 [CreateAssetMenu(menuName = "配置/创建子弹配置", fileName = "BulletConfig")]
 public class BulletConfig : ScriptableObject
 {
     [Header("子弹类型")]
-    public BulletType bulletType = BulletType.普通子弹;
-
-    [Header("子弹预制体")]
-    public GameObject bulletPrefab;
+    public BulletType bulletType = BulletType.Normal;
 
     [Header("命中特效")]
     public GameObject hitEffect;
 
-    [ShowIf("bulletType", BulletType.爆炸子弹)]
+    [ShowIf("bulletType", BulletType.Explosive)]
     [Header("爆炸特效")]
     public GameObject explosionEffect;
 
-    [ShowIf("bulletType", BulletType.爆炸子弹)]
+    [ShowIf("bulletType", BulletType.Explosive)]
     [Header("爆炸半径")]
     public float explosionRadius = 3f;
 
@@ -41,4 +38,10 @@ public class BulletConfig : ScriptableObject
 
     [Header("子弹存活时间（秒）")]
     public float bulletLifetime = 5f;
+
+    [Header("伤害值")]
+    public int damage = 50;
+
+    [Header("命中半径")]
+    public float hitRadius = 1.5f;
 }

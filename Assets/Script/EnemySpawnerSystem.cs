@@ -55,7 +55,8 @@ public partial struct EnemySpawnerSystem : ISystem
                             unit_id = enemy.id,
                             global_id = globalIdCounter++,
                             state = 0,
-                            triggerDie = false
+                            triggerDie = false,
+                            hp = GetInitialHp(enemy.id)
                         });
                     }
                     nextSpawnTime_enemy += spawnRate;
@@ -63,18 +64,16 @@ public partial struct EnemySpawnerSystem : ISystem
 
                 if (spawnBoss)
                 {
-                    for (int i = 0; i < 3; i++)
+                    Entity e = ecb.Instantiate(boss.entity);
+                    ecb.SetComponent(e, LocalTransform.FromPosition(float3.zero));
+                    ecb.AddComponent(e, new AgentComponent
                     {
-                        Entity e = ecb.Instantiate(boss.entity);
-                        ecb.SetComponent(e, LocalTransform.FromPosition(float3.zero));
-                        ecb.AddComponent(e, new AgentComponent
-                        {
-                            unit_id = boss.id,
-                            global_id = globalIdCounter++,
-                            state = 0,
-                            triggerDie = false
-                        });
-                    }
+                        unit_id = boss.id,
+                        global_id = globalIdCounter++,
+                        state = 0,
+                        triggerDie = false,
+                        hp = GetInitialHp(boss.id)
+                    });
                     nextSpawnTime_boss += spawnRate * 5;
                 }
 
@@ -83,6 +82,13 @@ public partial struct EnemySpawnerSystem : ISystem
             }
         }
     }
+
+    private static int GetInitialHp(int unitId) => unitId switch
+    {
+        1002 => 100,
+        1003 => 200,
+        _ => 100
+    };
 }
 
 public partial struct AgentComponent : IComponentData
@@ -91,4 +97,6 @@ public partial struct AgentComponent : IComponentData
     public int global_id;
     public byte state; // 0: idle, 1: move, 2: attack, 3: die
     public bool triggerDie;
+    public int hp;
+    public float dieTimer;
 }
