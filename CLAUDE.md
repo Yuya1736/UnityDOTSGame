@@ -118,3 +118,7 @@ Generated files appear in subfolders under the baked prefab's directory.
 - **Adding a new ECS system**: Create an unmanaged `partial struct : ISystem` with `IJobEntity`, add to `GPUECSAnimationBakerEngine` assembly.
 - **Controlling animation at runtime**: Use `GpuEcsAnimatorAspect.RunAnimation(animationID, blendFactor, speedFactor, startNormalizedTime, transitionSpeed)`.
 - **Attachments**: Must be pre-baked with anchors defined in the baker. Anchor transforms are baked per-frame into a `GpuEcsAttachmentAnchorData` ScriptableObject.
+
+## 代码风格与规范 (Code Style & Conventions)
+
+- ​	You can use Unity Skills Whenever you want

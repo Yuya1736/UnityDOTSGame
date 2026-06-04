@@ -16,6 +16,17 @@ public partial class EnemySystem : SystemBase
     private ORCABundle<Agent> _simulation;
     public Dictionary<int, AIEntity> etLst = new Dictionary<int, AIEntity>(10000);
 
+    private EntityQuery _agentQuery;
+
+    protected override void OnCreate()
+    {
+        _agentQuery = GetEntityQuery(
+            ComponentType.ReadWrite<AgentComponent>(),
+            ComponentType.ReadWrite<LocalTransform>(),
+            ComponentType.ReadOnly<GpuEcsAnimatorStateComponent>()
+        );
+    }
+
     protected override void OnUpdate()
     {
 
@@ -35,86 +46,77 @@ public partial class EnemySystem : SystemBase
         float deltaTime = SystemAPI.Time.DeltaTime;
 
         var entityManager = World.EntityManager;
-        var entities = entityManager.GetAllEntities(Unity.Collections.Allocator.Temp);
+        var entities = _agentQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
         EntityCommandBuffer ecb = new EntityCommandBuffer(Unity.Collections.Allocator.Temp);
 
         foreach (var entity in entities)
         {
-            if (entityManager.HasComponent<AgentComponent>(entity))
+            AgentComponent agentComponentData = entityManager.GetComponentData<AgentComponent>(entity);
+            if (agentComponentData.state == 0)
             {
-                AgentComponent agentComponentData = entityManager.GetComponentData<AgentComponent>(entity);
-                if (agentComponentData.state == 0)
+                var lt = entityManager.GetComponentData<LocalTransform>(entity);
+
+                float f1 = UnityEngine.Random.Range(-25, 25);
+                float f2 = UnityEngine.Random.Range(-25, 25);
+
+                lt.Position = playerPos + new float3(f1, 0, f2);
+
+                agentComponentData.state = 1;
+                entityManager.SetComponentData(entity, lt);
+                entityManager.SetComponentData(entity, agentComponentData);
+
+                var a = _simulation.NewAgent(lt.Position);
+                a.id = agentComponentData.global_id;
+                a.radius = 0.35f;
+                a.radiusObst = 0.35f;
+                a.maxSpeed = 1.75f;
+                a.prefVelocity = math.normalize(playerPos - a.pos) * 1.75f;
+                a.velocity = a.prefVelocity;
+                a.timeHorizon = 0.001f;
+
+                //切换到移动的动作
+                var xx = new AIEntity(entity, agentComponentData, a, new NativeArray<byte>(1, Allocator.Persistent),
+                       new NativeArray<quaternion>(1, Allocator.Persistent),
+                       new NativeArray<float3>(1, Allocator.Persistent), lt,
+                       entityManager.GetComponentData<GpuEcsAnimatorStateComponent>(entity), agentComponentData.unit_id);
+                etLst.Add(xx.GetInstanceID(), xx);
+                xx.Play(ref entityManager, AnimationIds1001.run.GetHashCode());
+            }
+            else if (agentComponentData.state == 1)
+            {
+                if (etLst.TryGetValue(agentComponentData.global_id, out var aiEntity))
                 {
-                    var lt = entityManager.GetComponentData<LocalTransform>(entity);
-
-                    float f1 = UnityEngine.Random.Range(-25, 25);
-                    float f2 = UnityEngine.Random.Range(-25, 25);
-
-                    lt.Position = playerPos + new float3(f1, 0, f2);
-
-                    agentComponentData.state = 1;
-                    entityManager.SetComponentData(entity, lt);
-                    entityManager.SetComponentData(entity, agentComponentData);
-
-                    var a = _simulation.NewAgent(lt.Position);
-                    a.id = agentComponentData.global_id;
-                    a.radius = 0.35f;
-                    a.radiusObst = 0.35f;
-                    a.maxSpeed = 1.75f;
-                    a.prefVelocity = math.normalize(playerPos - a.pos) * 1.75f;
-                    a.velocity = a.prefVelocity;
-                    a.timeHorizon = 0.001f;
-
-                    //切换到移动的动作
-                    var xx = new AIEntity(entity, agentComponentData, a, new NativeArray<byte>(1, Allocator.Persistent),
-                           new NativeArray<quaternion>(1, Allocator.Persistent),
-                           new NativeArray<float3>(1, Allocator.Persistent), lt,
-                           entityManager.GetComponentData<GpuEcsAnimatorStateComponent>(entity), agentComponentData.unit_id);
-                    etLst.Add(xx.GetInstanceID(), xx);
-                    xx.Play(ref entityManager, AnimationIds1001.run.GetHashCode());
-
-                }
-                else if (agentComponentData.state == 1)
-                {
-                    if (etLst.TryGetValue(agentComponentData.global_id, out var aiEntity))
+                    float d = 1.5f;
+                    //判断与主角的距离
+                    if (aiEntity.atk_type == 1)
                     {
-                        float d = 1.5f;
-                        //判断与主角的距离 
-                        if (aiEntity.atk_type == 1)
-                        {
-                            d = 15f;
-                        }
-
-                        if (!aiEntity.attacking && math.distancesq(playerPos, aiEntity.localTransform.Position) <= d * d)
-                        {
-                            
-                            aiEntity.attacking = true;// 要在攻击动作的过程中,释放子弹 
-                            entityManager.SetComponentData(entity, agentComponentData);
-
-                            // 攻击的时候朝向主角
-                            aiEntity.localTransform.Rotation = Quaternion.LookRotation(playerPos - aiEntity.localTransform.Position);
-                            entityManager.SetComponentData(entity, aiEntity.localTransform);
-
-                            // 播放攻击动作
-                            aiEntity.Play(ref entityManager, AnimationIds1001.attack.GetHashCode());
-                            aiEntity.agent.maxSpeed = 0;// 移动速度是0 避免攻击的时候 出现位移
-                        }
-                        else if (aiEntity.attacking && entityManager.GetComponentData<GpuEcsAnimatorStateComponent>(entity).currentNormalizedTime > 0.95f)
-                        {
-                            agentComponentData.state = 1;
-                            aiEntity.agent.maxSpeed = 1.75f; // 恢复速度
-                            aiEntity.attacking = false;
-                            entityManager.SetComponentData(entity, agentComponentData);
-                            aiEntity.Play(ref entityManager, AnimationIds1001.run.GetHashCode());
-                        }
+                        d = 15f;
                     }
-                    
-                }
-                else if (agentComponentData.state == 2)
-                {
 
+                    if (!aiEntity.attacking && math.distancesq(playerPos, aiEntity.localTransform.Position) <= d * d)
+                    {
+                        aiEntity.attacking = true;
+                        entityManager.SetComponentData(entity, agentComponentData);
+
+                        aiEntity.localTransform.Rotation = Quaternion.LookRotation(playerPos - aiEntity.localTransform.Position);
+                        entityManager.SetComponentData(entity, aiEntity.localTransform);
+
+                        aiEntity.Play(ref entityManager, AnimationIds1001.attack.GetHashCode());
+                        aiEntity.agent.maxSpeed = 0;
+                    }
+                    else if (aiEntity.attacking && entityManager.GetComponentData<GpuEcsAnimatorStateComponent>(entity).currentNormalizedTime > 0.95f)
+                    {
+                        agentComponentData.state = 1;
+                        aiEntity.agent.maxSpeed = 1.75f;
+                        aiEntity.attacking = false;
+                        entityManager.SetComponentData(entity, agentComponentData);
+                        aiEntity.Play(ref entityManager, AnimationIds1001.run.GetHashCode());
+                    }
                 }
-                
+            }
+            else if (agentComponentData.state == 2)
+            {
+
             }
         }
 
@@ -229,12 +231,12 @@ public class AIEntity
     {
         if (GetState() == 1)
         {
-            if (agentComponent.unit_id == 1001)
+            if (agentComponent.unit_id == 1002)
             {
                 EnemyJob enemyJob = new EnemyJob(p_pos, agent.pos, localTransform.Position, 1.75f, _rot_update, _rot, _prefVelocity);
-                _jobHandle = enemyJob.Schedule();
+                _jobHandle = enemyJob.Schedule(_jobHandle);
             }
-            else if (agentComponent.unit_id == 1002)
+            else if (agentComponent.unit_id == 1003)
             {
                 var r1 = p_pos - localTransform.Position;
                 localTransform.Rotation = Unity.Mathematics.quaternion.LookRotation(r1, Vector3.up);
@@ -249,7 +251,7 @@ public class AIEntity
     {
         if (GetState() == 1)
         {
-            if (agentComponent.unit_id == 1001)
+            if (agentComponent.unit_id == 1002)
             {
                 _jobHandle.Complete();
                 if (_rot_update[0] == 1)
