@@ -16,7 +16,7 @@ MonoBehaviour:
   bulletType: 0
   bulletSpeed: 12
   bulletLifetime: 4
-  damage: 30
+  damage: 10
   hitRadius: 1.2
   attackRange: 15
   attackCooldown: 3

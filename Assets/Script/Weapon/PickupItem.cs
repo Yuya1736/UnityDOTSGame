@@ -14,7 +14,11 @@ public class PickupItem : MonoBehaviour
     [Header("旋转速度（度/秒）")]
     public float rotateSpeed = 90f;
 
+    [Header("自动销毁时间（秒）")]
+    public float autoDestroyTime = 20f;
+
     private float _baseY;
+    private float _spawnTime;
     private Transform _playerTransform;
     private BulletSpawner _bulletSpawner;
     private bool _collected;
@@ -23,6 +27,7 @@ public class PickupItem : MonoBehaviour
     {
         CachePlayerRefs();
         _baseY = transform.position.y;
+        _spawnTime = Time.time;
     }
 
     // 从对象池取出后调用，重置状态
@@ -30,6 +35,7 @@ public class PickupItem : MonoBehaviour
     {
         _collected = false;
         _baseY = transform.position.y;
+        _spawnTime = Time.time;
         CachePlayerRefs();
     }
 
@@ -47,6 +53,12 @@ public class PickupItem : MonoBehaviour
     void Update()
     {
         if (_collected) return;
+
+        if (Time.time - _spawnTime >= autoDestroyTime)
+        {
+            Collect();
+            return;
+        }
 
         // 悬浮 + 旋转动效
         float y = _baseY + Mathf.Sin(Time.time * bobFrequency * Mathf.PI * 2f) * bobAmplitude;

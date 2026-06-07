@@ -13,6 +13,7 @@ using UnityEngine;
 public partial class EnemySystem : SystemBase
 {
     private GameObject _player;
+    private PlayerController _playerController;
     private ORCABundle<Agent> _simulation;
     public Dictionary<int, AIEntity> etLst = new Dictionary<int, AIEntity>(10000);
 
@@ -20,6 +21,7 @@ public partial class EnemySystem : SystemBase
     private BulletSpawner _bulletSpawner;
     private Dictionary<int, EnemyBulletConfig> _enemyBulletConfigs;
     private Entity _bulletPrefabEntity;
+    private const int MeleeDamage = 1;
 
     protected override void OnCreate()
     {
@@ -44,6 +46,7 @@ public partial class EnemySystem : SystemBase
                 return;
             }
             _bulletSpawner = _player.GetComponent<BulletSpawner>();
+            _playerController = _player.GetComponent<PlayerController>();
 
             // 加载怪物子弹配置
             _enemyBulletConfigs = new Dictionary<int, EnemyBulletConfig>();
@@ -175,6 +178,16 @@ public partial class EnemySystem : SystemBase
                             EnemyBulletSpawner.Fire(entityManager, _bulletPrefabEntity,
                                 aiEntity.localTransform.Position + new float3(0, 1f, 0),
                                 dir, fireCfg);
+                        }
+
+                        // 近战怪物：在动画中途对玩家造成伤害（距离够近才生效）
+                        if (aiEntity.atk_type == 0 && !aiEntity.hasFiredThisAttack
+                            && animState.currentNormalizedTime > 0.4f
+                            && _playerController != null
+                            && math.distancesq(playerPos, aiEntity.localTransform.Position) <= 1.5f * 1.5f)
+                        {
+                            aiEntity.hasFiredThisAttack = true;
+                            _playerController.TakeDamage(MeleeDamage);
                         }
 
                         // 动画结束，恢复移动

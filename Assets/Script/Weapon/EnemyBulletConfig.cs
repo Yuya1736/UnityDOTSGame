@@ -16,7 +16,7 @@ public class EnemyBulletConfig : ScriptableObject
     public float bulletLifetime = 4f;
 
     [Header("对玩家的伤害值")]
-    public int damage = 30;
+    public int damage = 10;
 
     [Header("命中检测半径")]
     public float hitRadius = 1.2f;
