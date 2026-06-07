@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7cbe9393b6b0cdd4fb1ad5ba9a2af264, type: 3}
+  m_Name: EnemyBulletConfig1003
+  m_EditorClassIdentifier: 
+  unitId: 1003
+  bulletType: 0
+  bulletSpeed: 12
+  bulletLifetime: 4
+  damage: 30
+  hitRadius: 1.2
+  attackRange: 15
+  attackCooldown: 3
+  bulletCount: 1
+  spreadAngle: 0
+  collisionOffset: {x: 0, y: 0, z: 0}
+  hitEffect: {fileID: 3200225397753482040, guid: ae992568b84d58e4c9d63bd47f5e8275,
+    type: 3}
+  bulletVisualPrefab: {fileID: 2036527320247936944, guid: 1aef7ae7f909fbd4396d4294ee5fff13,
+    type: 3}

@@ -1418,6 +1418,8 @@ MonoBehaviour:
   muzzlePoint: {fileID: 2074563448}
   bulletVisualPrefab: {fileID: 6852195084038757396, guid: f86af3966246d3543ab4a6647767adb3,
     type: 3}
+  pickupPrefab: {fileID: 1713351755122738, guid: 875090778e2bdbb4a81baffdf2c2c6b7,
+    type: 3}
 --- !u!4 &1853307093 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 1659488061049384836, guid: 4340d7144e793b74185770fc27c557d0,

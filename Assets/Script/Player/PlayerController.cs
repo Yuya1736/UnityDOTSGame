@@ -28,6 +28,7 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
 
     void Start()
     {
+        currentHp = maxHp;
         aimController = GetComponent<AimController>();
         animator = GetComponent<Animator>();
         shootAnimHash = Animator.StringToHash(shootAnimName);
@@ -93,6 +94,22 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
 
     public void PlayAnim(string trigger) => animator.SetTrigger(trigger);
 
+
+    [Header("最大生命值")]
+    public int maxHp = 100;
+    [HideInInspector] public int currentHp;
+
+    public void TakeDamage(int damage)
+    {
+        if (deadTrigger) return;
+        currentHp -= damage;
+        if (currentHp <= 0)
+        {
+            currentHp = 0;
+            deadTrigger = true;
+            ChangeState(PlayerState.Dead);
+        }
+    }
 
     public bool IsShooting()
     {

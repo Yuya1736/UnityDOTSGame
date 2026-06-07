@@ -44,4 +44,7 @@ public class BulletConfig : ScriptableObject
 
     [Header("命中半径")]
     public float hitRadius = 1.5f;
+
+    [Header("碰撞检测位置偏移")]
+    public Vector3 collisionOffset = new Vector3(0f, -0.5f, 0f);
 }

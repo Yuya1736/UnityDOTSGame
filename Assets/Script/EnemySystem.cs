@@ -17,6 +17,9 @@ public partial class EnemySystem : SystemBase
     public Dictionary<int, AIEntity> etLst = new Dictionary<int, AIEntity>(10000);
 
     private EntityQuery _agentQuery;
+    private BulletSpawner _bulletSpawner;
+    private Dictionary<int, EnemyBulletConfig> _enemyBulletConfigs;
+    private Entity _bulletPrefabEntity;
 
     protected override void OnCreate()
     {
@@ -40,6 +43,22 @@ public partial class EnemySystem : SystemBase
                 Debug.LogError("Player GameObject not found in the scene.");
                 return;
             }
+            _bulletSpawner = _player.GetComponent<BulletSpawner>();
+
+            // 加载怪物子弹配置
+            _enemyBulletConfigs = new Dictionary<int, EnemyBulletConfig>();
+            var cfg1003 = Resources.Load<EnemyBulletConfig>("Config/EnemyBulletConfig1003");
+            if (cfg1003 != null) _enemyBulletConfigs[cfg1003.unitId] = cfg1003;
+
+            // 获取子弹预制体 Entity（与 BulletSpawner 共用同一个）
+            var bsQuery = World.EntityManager.CreateEntityQuery(typeof(BulletSpawnerComponent));
+            if (bsQuery.CalculateEntityCount() > 0)
+            {
+                var arr = bsQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
+                _bulletPrefabEntity = World.EntityManager.GetComponentData<BulletSpawnerComponent>(arr[0]).bulletPrefab;
+                arr.Dispose();
+            }
+            bsQuery.Dispose();
         }
 
         float3 playerPos = _player.transform.position;
@@ -49,7 +68,7 @@ public partial class EnemySystem : SystemBase
         var entities = _agentQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
         EntityCommandBuffer ecb = new EntityCommandBuffer(Unity.Collections.Allocator.Temp);
 
-        foreach (var entity in entities)
+        foreach (Entity entity in entities)
         {
             AgentComponent agentComponentData = entityManager.GetComponentData<AgentComponent>(entity);
             if (agentComponentData.triggerDie)
@@ -59,10 +78,15 @@ public partial class EnemySystem : SystemBase
                 agentComponentData.dieTimer = 10f;
                 entityManager.SetComponentData(entity, agentComponentData);
 
-                if (etLst.TryGetValue(agentComponentData.global_id, out var dyingEntity))
+                if (etLst.TryGetValue(agentComponentData.global_id, out AIEntity dyingEntity))
                 {
+                    // 5% 概率掉落道具
+                    if (_bulletSpawner != null && UnityEngine.Random.value < 0.05f)
+                        _bulletSpawner.SpawnPickup((Vector3)dyingEntity.localTransform.Position);
+
                     dyingEntity.Play(ref entityManager, AnimationIds1001.die.GetHashCode());
                     dyingEntity.agent.maxSpeed = 0;
+                    _simulation.agents.Remove(dyingEntity.agent);
                     dyingEntity.Dispose();
                     etLst.Remove(agentComponentData.global_id);
                 }
@@ -97,7 +121,7 @@ public partial class EnemySystem : SystemBase
                 a.maxSpeed = 1.75f;
                 a.prefVelocity = math.normalize(playerPos - a.pos) * 1.75f;
                 a.velocity = a.prefVelocity;
-                a.timeHorizon = 0.001f;
+                a.timeHorizon = 3f;
 
                 //切换到移动的动作
                 var xx = new AIEntity(entity, agentComponentData, a, new NativeArray<byte>(1, Allocator.Persistent),
@@ -112,16 +136,22 @@ public partial class EnemySystem : SystemBase
             {
                 if (etLst.TryGetValue(agentComponentData.global_id, out var aiEntity))
                 {
+                    // 更新攻击冷却计时器
+                    if (aiEntity.attackCooldownTimer > 0)
+                        aiEntity.attackCooldownTimer -= deltaTime;
+
                     float d = 1.5f;
                     //判断与主角的距离
-                    if (aiEntity.atk_type == 1)
+                    if (aiEntity.atk_type == 1 && _enemyBulletConfigs.TryGetValue(aiEntity.unit_id, out var bCfg))
                     {
-                        d = 15f;
+                        d = bCfg.attackRange;
                     }
 
-                    if (!aiEntity.attacking && math.distancesq(playerPos, aiEntity.localTransform.Position) <= d * d)
+                    if (!aiEntity.attacking && aiEntity.attackCooldownTimer <= 0
+                        && math.distancesq(playerPos, aiEntity.localTransform.Position) <= d * d)
                     {
                         aiEntity.attacking = true;
+                        aiEntity.hasFiredThisAttack = false;
                         entityManager.SetComponentData(entity, agentComponentData);
 
                         aiEntity.localTransform.Rotation = Quaternion.LookRotation(playerPos - aiEntity.localTransform.Position);
@@ -130,13 +160,35 @@ public partial class EnemySystem : SystemBase
                         aiEntity.Play(ref entityManager, AnimationIds1001.attack.GetHashCode());
                         aiEntity.agent.maxSpeed = 0;
                     }
-                    else if (aiEntity.attacking && entityManager.GetComponentData<GpuEcsAnimatorStateComponent>(entity).currentNormalizedTime > 0.95f)
+                    else if (aiEntity.attacking)
                     {
-                        agentComponentData.state = 1;
-                        aiEntity.agent.maxSpeed = 1.75f;
-                        aiEntity.attacking = false;
-                        entityManager.SetComponentData(entity, agentComponentData);
-                        aiEntity.Play(ref entityManager, AnimationIds1001.run.GetHashCode());
+                        var animState = entityManager.GetComponentData<GpuEcsAnimatorStateComponent>(entity);
+
+                        // 远程怪物：在动画中途发射子弹
+                        if (aiEntity.atk_type == 1 && !aiEntity.hasFiredThisAttack
+                            && animState.currentNormalizedTime > 0.4f
+                            && _enemyBulletConfigs.TryGetValue(aiEntity.unit_id, out var fireCfg))
+                        {
+                            aiEntity.hasFiredThisAttack = true;
+                            float3 dir = math.normalizesafe(playerPos - aiEntity.localTransform.Position);
+                            dir.y = 0;
+                            EnemyBulletSpawner.Fire(entityManager, _bulletPrefabEntity,
+                                aiEntity.localTransform.Position + new float3(0, 1f, 0),
+                                dir, fireCfg);
+                        }
+
+                        // 动画结束，恢复移动
+                        if (animState.currentNormalizedTime > 0.95f)
+                        {
+                            if (aiEntity.atk_type == 1 && _enemyBulletConfigs.TryGetValue(aiEntity.unit_id, out var cdCfg))
+                                aiEntity.attackCooldownTimer = cdCfg.attackCooldown;
+
+                            agentComponentData.state = 1;
+                            aiEntity.agent.maxSpeed = 1.75f;
+                            aiEntity.attacking = false;
+                            entityManager.SetComponentData(entity, agentComponentData);
+                            aiEntity.Play(ref entityManager, AnimationIds1001.run.GetHashCode());
+                        }
                     }
                 }
             }
@@ -191,6 +243,8 @@ public class AIEntity
     public int atk_type;//0近战 1远程
 
     public bool attacking; //是否正在攻击
+    public float attackCooldownTimer; // 距下次可攻击的剩余时间
+    public bool hasFiredThisAttack;   // 本次攻击是否已发射子弹
 
     public WorldUnit grildInfo;//表示当前处于地图哪个格子
 
@@ -212,7 +266,7 @@ public class AIEntity
         _prefVelocity = prefVelocity;
         this.localTransform = localTransform;
         this.unit_id = unit_id;
-        //atk_type = UnitData.Get(unit_id).atk_type;
+        atk_type = Game.Config.UnitData.Get(unit_id)?.atk_type ?? 0;
 
         this.gpuEcsAnimatorControlComponent = new GpuEcsAnimatorControlComponent()
         {

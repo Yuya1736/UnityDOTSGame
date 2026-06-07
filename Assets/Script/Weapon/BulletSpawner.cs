@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using JKFrame;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -19,6 +20,9 @@ public class BulletSpawner : MonoBehaviour
 
     [Header("子弹拖尾视觉预制体（如 shoot_projectile）")]
     public GameObject bulletVisualPrefab;
+
+    [Header("掉落道具预制体（QstTiltedNeon）")]
+    public GameObject pickupPrefab;
 
     private EntityManager _entityManager;
     private Entity _bulletPrefabEntity;
@@ -65,6 +69,17 @@ public class BulletSpawner : MonoBehaviour
             }
         }
 
+        int explosionEffectIdx = -1;
+        if (config.bulletType == BulletType.Explosive && config.explosionEffect != null)
+        {
+            explosionEffectIdx = HitEffects.IndexOf(config.explosionEffect);
+            if (explosionEffectIdx < 0)
+            {
+                explosionEffectIdx = HitEffects.Count;
+                HitEffects.Add(config.explosionEffect);
+            }
+        }
+
         float3 muzzlePos = muzzlePoint != null ? (float3)muzzlePoint.position : (float3)transform.position;
         int count = Mathf.Max(1, config.bulletCount);
         float spread = config.spreadAngle;
@@ -86,18 +101,49 @@ public class BulletSpawner : MonoBehaviour
                 lastWorldUnitId = -1,
                 damage = config.damage,
                 hitEffectIndex = hitEffectIdx,
+                explosionEffectIndex = explosionEffectIdx,
+                collisionOffset = (float3)config.collisionOffset,
             });
 
             // 生成拖尾视觉并绑定
             if (bulletVisualPrefab != null)
             {
-                var visual = Object.Instantiate(bulletVisualPrefab, (Vector3)muzzlePos, Quaternion.LookRotation((Vector3)dir));
-                var tracker = visual.AddComponent<BulletVisualTracker>();
-                tracker.Init(e);
+                var visual = EffectPool.Instance.Spawn(bulletVisualPrefab, (Vector3)muzzlePos, Quaternion.LookRotation((Vector3)dir));
+                var tracker = visual.GetComponent<BulletVisualTracker>() ?? visual.AddComponent<BulletVisualTracker>();
+                tracker.Init(e, bulletVisualPrefab.name);
             }
         }
 
         // 枪口特效已移除（hitEffect 用于命中，不在此处播放）
+    }
+
+    // 随机切换到一个不同的子弹配置（拾取道具时调用）
+    public void SwitchRandomConfig()
+    {
+        if (configs == null || configs.Count <= 1) return;
+        int next = activeIndex;
+        while (next == activeIndex)
+            next = UnityEngine.Random.Range(0, configs.Count);
+        activeIndex = next;
+        Debug.Log($"[BulletSpawner] 切换到配置 {activeIndex}: {configs[activeIndex]?.name}");
+    }
+
+    // 在指定位置生成掉落物（使用 JKFrame 对象池）
+    public void SpawnPickup(Vector3 position)
+    {
+        if (pickupPrefab == null) return;
+
+        var go = PoolSystem.GetGameObject(pickupPrefab.name);
+        if (go == null)
+        {
+            go = Object.Instantiate(pickupPrefab);
+            go.name = pickupPrefab.name;
+        }
+
+        var item = go.GetComponent<PickupItem>() ?? go.AddComponent<PickupItem>();
+        go.transform.SetPositionAndRotation(position + Vector3.up * 0.5f, Quaternion.identity);
+        go.SetActive(true);
+        item.ResetState();
     }
 
     float3 ComputeDirection(float3 forward, int index, int total, float totalAngle)

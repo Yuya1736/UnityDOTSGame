@@ -46,10 +46,9 @@ public partial struct EnemySpawnerSystem : ISystem
 
                 if (spawnEnemy)
                 {
-                    for (int i = 0; i < 5; i++)
+                    for (int i = 0; i < 50; i++)
                     {
                         Entity e = ecb.Instantiate(enemy.entity);
-                        ecb.SetComponent(e, LocalTransform.FromPosition(float3.zero));
                         ecb.AddComponent(e, new AgentComponent
                         {
                             unit_id = enemy.id,
@@ -65,7 +64,6 @@ public partial struct EnemySpawnerSystem : ISystem
                 if (spawnBoss)
                 {
                     Entity e = ecb.Instantiate(boss.entity);
-                    ecb.SetComponent(e, LocalTransform.FromPosition(float3.zero));
                     ecb.AddComponent(e, new AgentComponent
                     {
                         unit_id = boss.id,
