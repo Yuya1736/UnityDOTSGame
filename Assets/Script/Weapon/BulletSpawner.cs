@@ -125,7 +125,7 @@ public class BulletSpawner : MonoBehaviour
         while (next == activeIndex)
             next = UnityEngine.Random.Range(0, configs.Count);
         activeIndex = next;
-        Debug.Log($"[BulletSpawner] 切换到配置 {activeIndex}: {configs[activeIndex]?.name}");
+        // Debug.Log($"[BulletSpawner] 切换到配置 {activeIndex}: {configs[activeIndex]?.name}");
     }
 
     // 在指定位置生成掉落物（使用 JKFrame 对象池）

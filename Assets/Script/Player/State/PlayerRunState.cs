@@ -7,6 +7,7 @@ public class PlayerRunState : PlayerStateBase
     public override void Update()
     {
         if (player.deadTrigger) { player.deadTrigger = false; player.ChangeState(PlayerState.Dead); return; }
+        if (player.dashTrigger) { player.dashTrigger = false; player.ChangeState(PlayerState.Dash); return; }
         if (player.moveDir == Vector2.zero) { player.ChangeState(PlayerState.Idle); return; }
 
         Transform cam = Camera.main.transform;

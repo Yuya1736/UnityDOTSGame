@@ -90,33 +90,33 @@ public partial class BulletSystem : SystemBase
                 }
                 else // 玩家子弹 → 现有逻辑
                 {
-                bool isExplosion = bullet.bulletType == BulletType.Explosive;
-                bool hitAny = false;
+                    bool isExplosion = bullet.bulletType == BulletType.Explosive;
+                    bool hitAny = false;
 
-                if (isExplosion)
-                {
-                    WorldUnitManager.Instance.OnHit(
-                        pos, range, entityManager, _enemySystem,
-                        (em, es, aiEntity, bPos, r, _) =>
-                        {
-                            float distSq = math.distancesq(bPos, aiEntity.localTransform.Position);
-                            if (distSq > r * r) return;
-
-                            aiEntity.attacking = false;
-                            hitAny = true;
-
-                            if (hitEffectIndex >= 0 && hitEffectIndex < BulletSpawner.HitEffects.Count)
-                                EffectPool.Instance.Spawn(BulletSpawner.HitEffects[hitEffectIndex],
-                                    (Vector3)aiEntity.localTransform.Position, Quaternion.identity, 2f);
-
-                            aiEntity.agentComponent.hp -= damage;
-                            if (aiEntity.agentComponent.hp <= 0)
+                    if (isExplosion)
+                    {
+                        WorldUnitManager.Instance.OnHit(
+                            pos, range, entityManager, _enemySystem,
+                            (em, es, aiEntity, bPos, r, _) =>
                             {
-                                aiEntity.agentComponent.triggerDie = true;
-                                em.SetComponentData(aiEntity.entity, aiEntity.agentComponent);
-                            }
-                        },
-                        0, false
+                                float distSq = math.distancesq(bPos, aiEntity.localTransform.Position);
+                                if (distSq > r * r) return;
+
+                                aiEntity.attacking = false;
+                                hitAny = true;
+
+                                if (hitEffectIndex >= 0 && hitEffectIndex < BulletSpawner.HitEffects.Count)
+                                    EffectPool.Instance.Spawn(BulletSpawner.HitEffects[hitEffectIndex],
+                                        (Vector3)aiEntity.localTransform.Position, Quaternion.identity, 2f);
+
+                                aiEntity.agentComponent.hp -= damage;
+                                if (aiEntity.agentComponent.hp <= 0)
+                                {
+                                    aiEntity.agentComponent.triggerDie = true;
+                                    em.SetComponentData(aiEntity.entity, aiEntity.agentComponent);
+                                }
+                            },
+                            0, false
                     );
 
                     if (hitAny)

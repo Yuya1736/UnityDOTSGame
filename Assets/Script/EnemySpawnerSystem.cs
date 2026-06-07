@@ -83,8 +83,8 @@ public partial struct EnemySpawnerSystem : ISystem
 
     private static int GetInitialHp(int unitId) => unitId switch
     {
-        1002 => 100,
-        1003 => 200,
+        1002 => 200,
+        1003 => 1000,
         _ => 100
     };
 }

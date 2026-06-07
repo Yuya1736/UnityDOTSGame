@@ -9,8 +9,16 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
     public CharacterController cc;
     public float moveSpeed = 4f;
 
+    [Header("冲刺")]
+    public float dashSpeed = 14f;
+    public float dashDuration = 0.25f;
+    public float dashCooldown = 1f;
+
     [HideInInspector] public Vector2 moveDir;
     [HideInInspector] public bool deadTrigger;
+    [HideInInspector] public bool dashTrigger;
+
+    private float _dashCooldownTimer;
 
     private StateMachine stateMachine = new StateMachine();
 
@@ -40,7 +48,22 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
 
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.LeftAlt) || Input.GetKeyDown(KeyCode.RightAlt))
+        {
+            Cursor.lockState = Cursor.lockState == CursorLockMode.Locked
+                ? CursorLockMode.None
+                : CursorLockMode.Locked;
+            Cursor.visible = Cursor.lockState == CursorLockMode.None;
+        }
+
         moveDir = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+
+        if (_dashCooldownTimer > 0f) _dashCooldownTimer -= Time.deltaTime;
+        if (Input.GetKeyDown(KeyCode.LeftShift) && _dashCooldownTimer <= 0f)
+        {
+            dashTrigger = true;
+            _dashCooldownTimer = dashCooldown;
+        }
 
         if (Input.GetMouseButtonDown(0)) animator.SetTrigger("shoot");
 
@@ -80,14 +103,17 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
     {
         switch (state)
         {
-            case PlayerState.Idle: 
-                stateMachine.ChangeState<PlayerIdleState>(); 
+            case PlayerState.Idle:
+                stateMachine.ChangeState<PlayerIdleState>();
                 break;
-            case PlayerState.Run:  
-                stateMachine.ChangeState<PlayerRunState>();  
+            case PlayerState.Run:
+                stateMachine.ChangeState<PlayerRunState>();
                 break;
-            case PlayerState.Dead: 
-                stateMachine.ChangeState<PlayerDeadState>(); 
+            case PlayerState.Dash:
+                stateMachine.ChangeState<PlayerDashState>();
+                break;
+            case PlayerState.Dead:
+                stateMachine.ChangeState<PlayerDeadState>();
                 break;
         }
     }

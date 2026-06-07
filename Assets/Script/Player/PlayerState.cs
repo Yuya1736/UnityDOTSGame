@@ -1,1 +1,1 @@
-public enum PlayerState { Idle, Run, Dead }
+public enum PlayerState { Idle, Run, Dash, Dead }

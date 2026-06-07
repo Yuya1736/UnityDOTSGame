@@ -231,5 +231,5 @@ MonoBehaviour:
       boneUsagesPerLoD: []
     transformUsageFlagsParent: 2
     transformUsageFlagsChildren: 1
-  gpuEcsAnimator: {fileID: 7489332391473090035, guid: cd2b2ca6e0131334296c59313877f267,
+  gpuEcsAnimator: {fileID: 1398789908636313019, guid: cd2b2ca6e0131334296c59313877f267,
     type: 3}

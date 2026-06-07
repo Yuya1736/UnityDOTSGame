@@ -4,7 +4,7 @@ namespace GPUECSAnimationBaker.Engine.AnimatorSystem
     {
         idle = 0,
         run = 1,
-        attack = 2, 
+        attack = 2,
         hit = 3,
         die = 4
     }
