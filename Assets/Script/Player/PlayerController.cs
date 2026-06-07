@@ -17,6 +17,7 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
     [HideInInspector] public Vector2 moveDir;
     [HideInInspector] public bool deadTrigger;
     [HideInInspector] public bool dashTrigger;
+    [HideInInspector] public bool shootTrigger;
 
     private float _dashCooldownTimer;
 
@@ -65,7 +66,11 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
             _dashCooldownTimer = dashCooldown;
         }
 
-        if (Input.GetMouseButtonDown(0)) animator.SetTrigger("shoot");
+        if (Input.GetMouseButtonDown(0) || shootTrigger)
+        {
+            animator.SetTrigger("shoot");
+            shootTrigger = false;
+        }
 
         if (IsShooting())
         {
