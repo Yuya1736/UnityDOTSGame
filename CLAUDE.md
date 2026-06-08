@@ -121,4 +121,4 @@ Generated files appear in subfolders under the baked prefab's directory.
 
 ## 代码风格与规范 (Code Style & Conventions)
 
-- ​	You can use Unity Skills Whenever you want
+- ​	You can use Unity Skills Whenever you want (The default address is http://localhost:8090/)

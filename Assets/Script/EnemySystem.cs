@@ -48,18 +48,32 @@ public partial class EnemySystem : SystemBase
             _bulletSpawner = _player.GetComponent<BulletSpawner>();
             _playerController = _player.GetComponent<PlayerController>();
 
-            // 加载怪物子弹配置
+            // 加载怪物子弹配置（Resources1 不在 Unity 标准 Resources 路径，通过 EnemyBulletConfigProvider 获取）
             _enemyBulletConfigs = new Dictionary<int, EnemyBulletConfig>();
-            var cfg1003 = Resources.Load<EnemyBulletConfig>("Config/EnemyBulletConfig1003");
-            if (cfg1003 != null) _enemyBulletConfigs[cfg1003.unitId] = cfg1003;
+            var configProvider = Object.FindObjectOfType<EnemyBulletConfigProvider>();
+            if (configProvider != null)
+            {
+                foreach (var cfg in configProvider.configs)
+                {
+                    if (cfg != null) _enemyBulletConfigs[cfg.unitId] = cfg;
+                }
+            }
+            else
+            {
+                Debug.LogError("[EnemySystem] EnemyBulletConfigProvider not found in scene! Boss will not fire.");
+            }
 
-            // 获取子弹预制体 Entity（与 BulletSpawner 共用同一个）
+        }
+
+        // 每帧尝试获取子弹预制体 Entity，直到 SubScene Bake 完成后才会有值
+        if (_bulletPrefabEntity == Entity.Null)
+        {
             var bsQuery = World.EntityManager.CreateEntityQuery(typeof(BulletSpawnerComponent));
             if (bsQuery.CalculateEntityCount() > 0)
             {
                 var arr = bsQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
                 _bulletPrefabEntity = World.EntityManager.GetComponentData<BulletSpawnerComponent>(arr[0]).bulletPrefab;
-                arr.Dispose();
+                arr.Dispose();                                                                                                                                                                                                                           
             }
             bsQuery.Dispose();
         }
@@ -331,10 +345,13 @@ public class AIEntity
             }
             else if (agentComponent.unit_id == 1003)
             {
-                var r1 = p_pos - localTransform.Position;
-                localTransform.Rotation = Unity.Mathematics.quaternion.LookRotation(r1, Vector3.up);
-                localTransform.Position = localTransform.Position + localTransform.Forward() * Time.deltaTime * agent.maxSpeed;
-                ecb.SetComponent(entity, localTransform);
+                if (!attacking)
+                {
+                    var r1 = p_pos - localTransform.Position;
+                    localTransform.Rotation = Unity.Mathematics.quaternion.LookRotation(r1, Vector3.up);
+                    localTransform.Position = localTransform.Position + localTransform.Forward() * Time.deltaTime * agent.maxSpeed;
+                    ecb.SetComponent(entity, localTransform);
+                }
                 UpdateGrild();
             }
 

@@ -8,6 +8,7 @@ public class PlayerDashState : PlayerStateBase
     public override void Enter()
     {
         player.PlayAnim("dash");
+        player.ResetDashCooldown();
         _timer = player.dashDuration;
 
         // 以当前移动方向冲刺；无输入则沿朝向冲刺

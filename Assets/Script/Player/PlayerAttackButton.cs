@@ -1,13 +1,12 @@
-using DigitalRubyShared;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// 移动端攻击按钮，仿照 FingersJoystickScript 模式。
-/// 挂在攻击按钮 RectTransform 上，用 TapGestureRecognizer 检测触点。
-/// Inspector 中拖入 PlayerController 引用（或自动 FindObjectOfType）。
+/// 移动端攻击按钮。改用 IPointerDownHandler 绕开 Fingers 手势冲突，
+/// 移动中也能可靠触发。
 /// </summary>
-public class PlayerAttackButton : MonoBehaviour
+public class PlayerAttackButton : MonoBehaviour, IPointerDownHandler, IPointerUpHandler
 {
     [Tooltip("PlayerController 引用，留空则自动查找场景中第一个")]
     public PlayerController controller;
@@ -20,54 +19,23 @@ public class PlayerAttackButton : MonoBehaviour
     [Tooltip("按下精灵")]
     public Sprite pressedSprite;
 
-    private TapGestureRecognizer _tapGesture;
-    private RectTransform _rect;
-
     private void Awake()
     {
-        _rect = transform as RectTransform;
         if (controller == null)
             controller = FindObjectOfType<PlayerController>();
     }
 
-    private void OnEnable()
+    public void OnPointerDown(PointerEventData eventData)
     {
-        _tapGesture = new TapGestureRecognizer();
-        _tapGesture.StateUpdated += OnTap;
-        // 允许与摇杆手势同时识别
-        _tapGesture.AllowSimultaneousExecutionWithAllGestures();
-        FingersScript.Instance.AddGesture(_tapGesture);
+        if (controller != null)
+            controller.shootTrigger = true;
+
+        SetSprite(pressedSprite);
     }
 
-    private void OnDisable()
+    public void OnPointerUp(PointerEventData eventData)
     {
-        if (FingersScript.HasInstance)
-            FingersScript.Instance.RemoveGesture(_tapGesture);
-        _tapGesture = null;
-    }
-
-    private void OnTap(GestureRecognizer gesture)
-    {
-        if (gesture.State == GestureRecognizerState.Ended)
-        {
-            // 仅响应落在本按钮区域内的触点
-            if (!RectTransformUtility.RectangleContainsScreenPoint(
-                    _rect, new Vector2(gesture.FocusX, gesture.FocusY)))
-                return;
-
-            if (controller != null)
-                controller.shootTrigger = true;
-
-            SetSprite(idleSprite);
-        }
-        else if (gesture.State == GestureRecognizerState.Began)
-        {
-            if (!RectTransformUtility.RectangleContainsScreenPoint(
-                    _rect, new Vector2(gesture.FocusX, gesture.FocusY)))
-                return;
-
-            SetSprite(pressedSprite);
-        }
+        SetSprite(idleSprite);
     }
 
     private void SetSprite(Sprite sprite)

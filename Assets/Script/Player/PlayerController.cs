@@ -49,6 +49,7 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
 
     void Update()
     {
+#if UNITY_STANDALONE || UNITY_EDITOR
         if (Input.GetKeyDown(KeyCode.LeftAlt) || Input.GetKeyDown(KeyCode.RightAlt))
         {
             Cursor.lockState = Cursor.lockState == CursorLockMode.Locked
@@ -56,15 +57,19 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
                 : CursorLockMode.Locked;
             Cursor.visible = Cursor.lockState == CursorLockMode.None;
         }
+#endif
 
+#if UNITY_STANDALONE || UNITY_EDITOR
         moveDir = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+#endif
 
         if (_dashCooldownTimer > 0f) _dashCooldownTimer -= Time.deltaTime;
+#if UNITY_STANDALONE || UNITY_EDITOR
         if (Input.GetKeyDown(KeyCode.LeftShift) && _dashCooldownTimer <= 0f)
         {
             dashTrigger = true;
-            _dashCooldownTimer = dashCooldown;
         }
+#endif
 
         if (Input.GetMouseButtonDown(0) || shootTrigger)
         {
@@ -130,9 +135,11 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
     public int maxHp = 100;
     [HideInInspector] public int currentHp;
 
+    [HideInInspector] public bool isInvincible;
+
     public void TakeDamage(int damage)
     {
-        if (deadTrigger) return;
+        if (deadTrigger || isInvincible) return;
         currentHp -= damage;
         if (currentHp <= 0)
         {
@@ -141,6 +148,13 @@ public class PlayerController : MonoBehaviour, IStateMachineOwner
             ChangeState(PlayerState.Dead);
         }
     }
+
+    /// <summary>冷却进度 0=可用，1=刚触发，供 UI 冷却遮罩使用</summary>
+    public float DashCooldownRatio => dashCooldown > 0f ? Mathf.Clamp01(_dashCooldownTimer / dashCooldown) : 0f;
+
+    public bool IsDashReady => _dashCooldownTimer <= 0f;
+
+    public void ResetDashCooldown() => _dashCooldownTimer = dashCooldown;
 
     public bool IsShooting()
     {

@@ -1,0 +1,6 @@
+<linker>
+  <assembly fullname="Assembly-CSharp">
+    <type fullname="EnemyBulletConfigProvider" preserve="all"/>
+    <type fullname="EnemyBulletConfig" preserve="all"/>
+  </assembly>
+</linker>

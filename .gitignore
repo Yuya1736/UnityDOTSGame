@@ -57,3 +57,9 @@ ExportedObj/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Unity editor generated / build artifacts
+Assets/BuildReports/
+Assets/BuildReports.meta
+Assets/SceneDependencyCache/
+Assets/SceneDependencyCache.meta

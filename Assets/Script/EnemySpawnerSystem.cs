@@ -6,6 +6,9 @@ using UnityEngine;
 
 public partial struct EnemySpawnerSystem : ISystem
 {
+    // 外部请求批量生成：count个unit_id=1002的敌人
+    public static int pendingSpawn1002Count;
+
     private bool init;
 
     public Entity spawnerEntity;
@@ -29,7 +32,7 @@ public partial struct EnemySpawnerSystem : ISystem
             enemy = spawner.ValueRO.enemyPrefab;
             boss = spawner.ValueRO.bossPrefab;
             spawnRate = spawner.ValueRO.spawnRate;
-            nextSpawnTime_enemy = 0;
+            nextSpawnTime_enemy = 5;
             nextSpawnTime_boss = 10;
             globalIdCounter = 0;
             init = true;
@@ -72,11 +75,33 @@ public partial struct EnemySpawnerSystem : ISystem
                         triggerDie = false,
                         hp = GetInitialHp(boss.id)
                     });
-                    nextSpawnTime_boss += spawnRate * 5;
+                    nextSpawnTime_boss += spawnRate * 4;
                 }
 
                 ecb.Playback(state.EntityManager);
                 ecb.Dispose();
+            }
+
+            // 处理外部批量生成请求
+            int toSpawn = pendingSpawn1002Count;
+            if (toSpawn > 0)
+            {
+                pendingSpawn1002Count = 0;
+                EntityCommandBuffer ecb2 = new EntityCommandBuffer(Allocator.TempJob);
+                for (int i = 0; i < toSpawn; i++)
+                {
+                    Entity e = ecb2.Instantiate(enemy.entity);
+                    ecb2.AddComponent(e, new AgentComponent
+                    {
+                        unit_id = 1002,
+                        global_id = globalIdCounter++,
+                        state = 0,
+                        triggerDie = false,
+                        hp = GetInitialHp(1002)
+                    });
+                }
+                ecb2.Playback(state.EntityManager);
+                ecb2.Dispose();
             }
         }
     }

@@ -22,10 +22,12 @@ public class PlayerMobileInput : MonoBehaviour
     private void LateUpdate()
     {
         if (_controller == null || moveJoystick == null) return;
-        if (!moveJoystick.Executing) return;
+        if (!moveJoystick.Executing)
+        {
+            _controller.moveDir = Vector2.zero;
+            return;
+        }
 
-        // PlayerController.Update 已写入键盘值，这里叠加摇杆值并限幅
-        _controller.moveDir = Vector2.ClampMagnitude(
-            _controller.moveDir + moveJoystick.CurrentAmount, 1.0f);
+        _controller.moveDir = moveJoystick.CurrentAmount;
     }
 }
