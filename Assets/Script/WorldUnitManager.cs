@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 using Unity.Entities;
@@ -15,76 +14,41 @@ public class WorldUnitManager
     public int width = 1;
     int customId = 0;
 
-    public Dictionary<int, Dictionary<int, WorldUnit>> grilds_dct = new Dictionary<int, Dictionary<int, WorldUnit>>();
+    public Dictionary<long, WorldUnit> grilds_dct = new Dictionary<long, WorldUnit>();
 
+    static long MakeKey(int z, int x) => ((long)z << 32) | (uint)x;
 
     public void Clear()
     {
-        grilds_dct.Clear();
-        foreach (var item in grilds_dct)
-        {
-            if (item.Value.Count == 0)
-            {
-                continue;
-            }
-            foreach (var item2 in item.Value)
-            {
-                item2.Value.Clear();
-            }
-        }
+        foreach (var cell in grilds_dct.Values)
+            cell.Clear();
         grilds_dct.Clear();
         customId = 0;
     }
 
-
-    //�ж���������Ƿ��ж�Ӧ�ĸ�����
     public WorldUnit HasGrild(Vector3 p)
     {
-        var x = (int)Math.Floor(p.x / width);//3.14 3  -2.8 -3
-        var z = (int)Math.Floor(p.z / width);
-        if (grilds_dct.TryGetValue(z, out var z_grilds))
-        {
-            if (z_grilds.TryGetValue(x, out var x_grild))
-            {
-                return x_grild;
-            }
-        }
-        return null;
+        long key = MakeKey((int)Math.Floor(p.z / width), (int)Math.Floor(p.x / width));
+        grilds_dct.TryGetValue(key, out var g);
+        return g;
     }
 
-    //���������ȡ����
     public WorldUnit Get(Vector3 position)
     {
-        var p = position;
-        //����ȡ��
-        var x = (int)Math.Floor(p.x / width);
-        var z = (int)Math.Floor(p.z / width);
-        if (grilds_dct.ContainsKey(z) == false)
-        {
-            grilds_dct[z] = new Dictionary<int, WorldUnit>();
-        }
+        var x = (int)Math.Floor(position.x / width);
+        var z = (int)Math.Floor(position.z / width);
+        long key = MakeKey(z, x);
+        if (grilds_dct.TryGetValue(key, out var g)) return g;
 
-        if (grilds_dct[z].TryGetValue(x, out var g))
-        {
-            return g;
-        }
-        else
-        {
-            var x_min = x * width;
-            var z_min = z * width;
-            customId += 1;
-            WorldUnit item = new WorldUnit(customId, (float)x_min, (float)(x_min + width),
-                (float)z_min, (float)(z_min + width), width);
-
-            item.z_id = z;//��ID ǰ��
-            item.x_id = x;//��ID ����
-            grilds_dct[z][x] = item;
-            return item;
-        }
+        var item = new WorldUnit(++customId,
+            x * width, (x + 1) * width,
+            z * width, (z + 1) * width, width);
+        item.z_id = z;
+        item.x_id = x;
+        grilds_dct[key] = item;
+        return item;
     }
 
-
-    //����AI��Ӧ�ĸ���
     public WorldUnit Set(AIEntity p)
     {
         if (p != null)
@@ -100,122 +64,80 @@ public class WorldUnitManager
         return null;
     }
 
-    //��λ�ƶ���,���������ӿ�,���¸���ID
     public WorldUnit Change(AIEntity p)
     {
         if (p != null)
         {
             if (p.grildInfo != null)
             {
-                var result = p.grildInfo.ContainPoint(p.GetPosition());
-                if (result == false)
+                if (!p.grildInfo.ContainPoint(p.GetPosition()))
                 {
                     p.grildInfo.Remove(p);
                     return Set(p);
                 }
-                else
-                {
-                    return p.grildInfo;
-                }
+                return p.grildInfo;
             }
-            else
-            {
-                return Set(p);
-            }
+            return Set(p);
         }
         return null;
     }
 
-    //�Ƴ�
     public void Remove(AIEntity p)
     {
         if (p != null && p.grildInfo != null)
         {
-            var result = p.grildInfo.Remove(p);
-            if (result)
-            {
+            if (p.grildInfo.Remove(p))
                 p.grildInfo = null;
-            }
         }
     }
 
-    //���ݷ�Χ��ȡ���ӵ�����
     public int GetCount(float range)
     {
-        int count = (int)Math.Ceiling(range / width);//����ȡ�� ��Χ��10.5/1 ==11������
-        return count;
+        return (int)Math.Ceiling(range / width);
     }
 
-    //���ݷ�Χ,��ȡһ����Χ�ڵĸ��ӵĶ���
     public void GetRangTarget(WorldUnit g, float range, Action<AIEntity> a)
     {
-        //����Ȥ�ĸ�������
-        int count = GetCount(range);
-        //ȡ�����½ǵ�λ��
-        int z = g.z_id - count;
-        int x = g.x_id - count;
-        //��������2
-        var count1 = count * 2;
-        if (grilds_dct.Count>0)
+        int count  = GetCount(range);
+        int count1 = count * 2;
+        int z0     = g.z_id - count;
+        int x0     = g.x_id - count;
+
+        for (int j = 0; j <= count1; j++)
         {
-            for (int j = 0; j <= count1; j++)
+            for (int k = 0; k <= count1; k++)
             {
-                var z1 = z + j;
-                //�����һ�в�����  ֱ��ִ����һ�е��ж�
-                if (grilds_dct.ContainsKey(z1) == false) { continue; }
-
-                for (int k = 0; k <= count1; k++)
-                {
-                    var x1 = x + k;
-                    if (grilds_dct[z1].ContainsKey(x1) == false) { continue; }
-
-                    var item = grilds_dct[z1][x1];
-
-
-                    if (item.unitDct.Count > 0)
-                    {
-                        foreach (var pp in item.unitDct.Values)
-                        {
-                            a?.Invoke(pp);
-                        }
-                    }
-                }
+                if (!grilds_dct.TryGetValue(MakeKey(z0 + j, x0 + k), out var cell)) continue;
+                foreach (var pp in cell.unitDct.Values)
+                    a?.Invoke(pp);
             }
-
         }
     }
 
     public AIEntity FindNearest(float3 pos, float range)
     {
-        int count = GetCount(range);
-        var x_id = (int)Math.Floor(pos.x / width);
-        var z_id = (int)Math.Floor(pos.z / width);
-        int z = z_id - count;
-        int x = x_id - count;
-        var count1 = count * 2;
+        int count  = GetCount(range);
+        int x_id   = (int)Math.Floor(pos.x / width);
+        int z_id   = (int)Math.Floor(pos.z / width);
+        int count1 = count * 2;
+        int z0     = z_id - count;
+        int x0     = x_id - count;
 
-        AIEntity nearest = null;
-        float nearestDistSq = range * range;
+        AIEntity nearest      = null;
+        float nearestDistSq   = range * range;
 
-        if (grilds_dct.Count > 0)
+        for (int j = 0; j <= count1; j++)
         {
-            for (int j = 0; j <= count1; j++)
+            for (int k = 0; k <= count1; k++)
             {
-                var z1 = z + j;
-                if (!grilds_dct.ContainsKey(z1)) continue;
-                for (int k = 0; k <= count1; k++)
+                if (!grilds_dct.TryGetValue(MakeKey(z0 + j, x0 + k), out var cell)) continue;
+                foreach (var pp in cell.unitDct.Values)
                 {
-                    var x1 = x + k;
-                    if (!grilds_dct[z1].ContainsKey(x1)) continue;
-                    var item = grilds_dct[z1][x1];
-                    foreach (var pp in item.unitDct.Values)
+                    float distSq = math.distancesq(pos, pp.localTransform.Position);
+                    if (distSq <= nearestDistSq)
                     {
-                        float distSq = math.distancesq(pos, pp.localTransform.Position);
-                        if (distSq <= nearestDistSq)
-                        {
-                            nearestDistSq = distSq;
-                            nearest = pp;
-                        }
+                        nearestDistSq = distSq;
+                        nearest       = pp;
                     }
                 }
             }
@@ -223,42 +145,25 @@ public class WorldUnitManager
         return nearest;
     }
 
-    internal void OnHit(float3 bullet_pos, float range, EntityManager manage, EnemySystem es, Action<EntityManager, EnemySystem, AIEntity, float3, float, int> a, int bulletId, bool on_hit_destroy)
+    internal void OnHit(float3 bullet_pos, float range, EntityManager manage, EnemySystem es,
+        Action<EntityManager, EnemySystem, AIEntity, float3, float, int> a, int bulletId, bool on_hit_destroy)
     {
-        //var t = grilds_dct.Values;
-        int count = GetCount(range);
+        int count  = GetCount(range);
+        int x_id   = (int)Math.Floor(bullet_pos.x / width);
+        int z_id   = (int)Math.Floor(bullet_pos.z / width);
+        int count1 = count * 2;
+        int z0     = z_id - count;
+        int x0     = x_id - count;
 
-        var x_id = (int)Math.Floor(bullet_pos.x / width);
-        var z_id = (int)Math.Floor(bullet_pos.z / width);
-
-        int z = z_id - count;
-        int x = x_id - count;
-        var count1 = count * 2;
-        if (grilds_dct.Count > 0)
+        for (int j = 0; j <= count1; j++)
         {
-            for (int j = 0; j <= count1; j++)
+            for (int k = 0; k <= count1; k++)
             {
-                var z1 = z + j;
-                if (grilds_dct.ContainsKey(z1) == false) { continue; }
-
-                for (int k = 0; k <= count1; k++)
+                if (!grilds_dct.TryGetValue(MakeKey(z0 + j, x0 + k), out var cell)) continue;
+                foreach (var pp in cell.unitDct.Values)
                 {
-                    var x1 = x + k;
-                    if (grilds_dct[z1].ContainsKey(x1) == false) { continue; }
-
-                    var item = grilds_dct[z1][x1];
-
-                    if (item.unitDct.Count > 0)
-                    {
-                        foreach (var pp in item.unitDct.Values)
-                        {
-                            a?.Invoke(manage, es, pp, bullet_pos, range, bulletId);
-                            if (on_hit_destroy)
-                            {
-                                return;
-                            }
-                        }
-                    }
+                    a?.Invoke(manage, es, pp, bullet_pos, range, bulletId);
+                    if (on_hit_destroy) return;
                 }
             }
         }
@@ -268,111 +173,53 @@ public class WorldUnitManager
 
 public class WorldUnit
 {
-    public int id;//���ӵ�ID
-
-    //public int y_id;
+    public int id;
     public int x_id;
     public int z_id;
 
-    public float x_min;//���������x
-    //public float y_min;
-    public float z_min;//���ӵ���Сz
-
+    public float x_min;
+    public float z_min;
     public float x_max;
-    //public float y_max;
     public float z_max;
-
-    public float size;//ÿ�����ӵĴ�С
-
-    //public Vector3 pos;
-
-    //public Dictionary<string, PlayerData> unit = new Dictionary<string, PlayerData>();
+    public float size;
 
     public Dictionary<int, AIEntity> unitDct = new Dictionary<int, AIEntity>(50);
 
     public WorldUnit(int id, float x_min, float x_max, float z_min, float z_max, int size)
     {
-        this.id = id;
+        this.id    = id;
         this.x_min = x_min;
         this.z_min = z_min;
-
-        //pos = new Vector3(x_min, z_min);
         this.x_max = x_max;
         this.z_max = z_max;
-        this.size = size;
-    }
-    //��������ϻ�������е�λ
-    public void Clear()
-    {
-        if (unitDct.Count > 0)
-        {
-            unitDct.Clear();
-        }
+        this.size  = size;
     }
 
-    //������������ӵ�λ
+    public void Clear()
+    {
+        unitDct.Clear();
+    }
+
     public bool Add(AIEntity pd)
     {
-        if (pd == null)
-        {
-            return false;
-        }
+        if (pd == null) return false;
         unitDct[pd.GetInstanceID()] = pd;
-        //pd.grildInfo = this;
         return true;
     }
 
     public bool Remove(int _instance_id)
     {
-        var id = _instance_id;
-        if (unitDct.ContainsKey(id))
-        {
-            unitDct.Remove(id);
-            return true;
-        }
-        return false;
+        return unitDct.Remove(_instance_id);
     }
 
     public bool Remove(AIEntity pd)
     {
-        if (pd == null)
-        {
-            return false;
-        }
-        var id = pd.GetInstanceID();
-        if (unitDct.ContainsKey(id))
-        {
-            unitDct.Remove(id);
-            //pd.grildInfo = null;
-            return true;
-        }
-        return false;
+        if (pd == null) return false;
+        return unitDct.Remove(pd.GetInstanceID());
     }
 
-    //�ж����λ���Ƿ�����������ڲ�
     public bool ContainPoint(Vector3 point)
     {
-        if (point.x >= x_min && point.x <= x_max && point.z >= z_min && point.z <= z_max)
-        {
-            return true;
-        }
-        return false;
+        return point.x >= x_min && point.x <= x_max && point.z >= z_min && point.z <= z_max;
     }
-
-    //��ȡ��Χ�˸�����
-    //public void AddToList(List<AIEntity> lst)
-    //{
-    //    if (lst != null && unitDct.Count > 0)
-    //    {
-    //        var valus = unitDct.Values;
-    //        foreach (var item in valus)
-    //        {
-    //            if (item != null && item.IsActive())
-    //            {
-    //                lst.Add(item);
-    //            }
-    //        }
-    //    }
-    //}
-
 }
