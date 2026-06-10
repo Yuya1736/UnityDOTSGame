@@ -4,6 +4,7 @@ using Nebukam.ORCA;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
@@ -275,7 +276,7 @@ public partial class EnemySystem : SystemBase
                 rotations      = rotations,
                 prefVelocities = prefVelocities,
                 newPositions   = newPositions,
-            }.Schedule(activeCount, 64).Complete();
+            }.Schedule(activeCount, 64, default).Complete();
 
             for (int i = 0; i < activeCount; i++)
             {
