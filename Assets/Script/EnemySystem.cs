@@ -156,9 +156,7 @@ public partial class EnemySystem : SystemBase
                 a.velocity = a.prefVelocity;
                 a.timeHorizon = 3f;
 
-                var xx = new AIEntity(entity, agentComponentData, a, new NativeArray<byte>(1, Allocator.Persistent),
-                       new NativeArray<quaternion>(1, Allocator.Persistent),
-                       new NativeArray<float3>(1, Allocator.Persistent), lt,
+                var xx = new AIEntity(entity, agentComponentData, a, lt,
                        animStates[i], agentComponentData.unit_id);
                 etLst.Add(xx.GetInstanceID(), xx);
                 WorldUnitManager.Instance.Set(xx);
@@ -241,14 +239,75 @@ public partial class EnemySystem : SystemBase
 
         if (etLst.Count > 0)
         {
-            foreach (var item in etLst)
+            int activeCount    = etLst.Count;
+            var aiArray        = new AIEntity[activeCount];
+            var agentPosList   = new NativeArray<float3>(activeCount, Allocator.TempJob);
+            var selfPosList    = new NativeArray<float3>(activeCount, Allocator.TempJob);
+            var speedList      = new NativeArray<float>(activeCount, Allocator.TempJob);
+            var unitIdList     = new NativeArray<int>(activeCount, Allocator.TempJob);
+            var rotUpdates     = new NativeArray<byte>(activeCount, Allocator.TempJob);
+            var rotations      = new NativeArray<quaternion>(activeCount, Allocator.TempJob);
+            var prefVelocities = new NativeArray<float3>(activeCount, Allocator.TempJob);
+            var newPositions   = new NativeArray<float3>(activeCount, Allocator.TempJob);
+
+            int idx = 0;
+            foreach (var kv in etLst)
             {
-                item.Value.DOUpdatePositionJob(playerPos, ecb);
+                var ai          = kv.Value;
+                aiArray[idx]    = ai;
+                agentPosList[idx] = ai.agent.pos;
+                selfPosList[idx]  = ai.localTransform.Position;
+                speedList[idx]    = ai.agent.maxSpeed;
+                unitIdList[idx]   = ai.agentComponent.unit_id;
+                idx++;
             }
-            foreach (var item in etLst)
+
+            new EnemyMoveJob
             {
-                item.Value.DOUpdatePosition(ecb);
+                playerPos      = playerPos,
+                agentPositions = agentPosList,
+                selfPositions  = selfPosList,
+                speeds         = speedList,
+                unitIds        = unitIdList,
+                deltaTime      = deltaTime,
+                rotUpdates     = rotUpdates,
+                rotations      = rotations,
+                prefVelocities = prefVelocities,
+                newPositions   = newPositions,
+            }.Schedule(activeCount, 64).Complete();
+
+            for (int i = 0; i < activeCount; i++)
+            {
+                var ai = aiArray[i];
+                if (ai.agentComponent.state != 1) continue;
+
+                if (ai.agentComponent.unit_id == 1002)
+                {
+                    if (rotUpdates[i] == 1)
+                        ai.localTransform.Rotation = rotations[i];
+                    ai.localTransform.Position = newPositions[i];
+                    ai.agent.prefVelocity      = prefVelocities[i];
+                    ecb.SetComponent(ai.entity, ai.localTransform);
+                }
+                else if (ai.agentComponent.unit_id == 1003 && !ai.attacking)
+                {
+                    if (rotUpdates[i] == 1)
+                        ai.localTransform.Rotation = rotations[i];
+                    ai.localTransform.Position = newPositions[i];
+                    ecb.SetComponent(ai.entity, ai.localTransform);
+                }
+
+                ai.UpdateGrild();
             }
+
+            agentPosList.Dispose();
+            selfPosList.Dispose();
+            speedList.Dispose();
+            unitIdList.Dispose();
+            rotUpdates.Dispose();
+            rotations.Dispose();
+            prefVelocities.Dispose();
+            newPositions.Dispose();
         }
 
         ecb.Playback(entityManager);
@@ -262,19 +321,12 @@ public class AIEntity
     public AgentComponent agentComponent;//记录了单位的一些信息
     public Agent agent;//确认 下一步移动到哪里 (动态避障)
 
-    //jobsystem 计算移动
-    public NativeArray<byte> _rot_update;
-    public NativeArray<quaternion> _rot;
-    public NativeArray<float3> _prefVelocity;
-
     public LocalTransform localTransform;
 
     //GPU Animation
     public GpuEcsAnimatorControlComponent gpuEcsAnimatorControlComponent;
     public GpuEcsAnimatorControlStateComponent gpuEcsAnimatorControlStateComponent;
     public GpuEcsAnimatorStateComponent stateComponent;
-
-    JobHandle _jobHandle;
 
     public int unit_id;//单位ID
     public int atk_type;//0近战 1远程
@@ -291,16 +343,12 @@ public class AIEntity
     }
 
 
-    public AIEntity(Entity e, AgentComponent ac, Agent a, NativeArray<byte> rot_update,
-        NativeArray<quaternion> rot, NativeArray<float3> prefVelocity, LocalTransform localTransform,
+    public AIEntity(Entity e, AgentComponent ac, Agent a, LocalTransform localTransform,
         GpuEcsAnimatorStateComponent stateComponent, int unit_id)
     {
         this.entity = e;
         this.agentComponent = ac;
         this.agent = a;
-        _rot_update = rot_update;
-        _rot = rot;
-        _prefVelocity = prefVelocity;
         this.localTransform = localTransform;
         this.unit_id = unit_id;
         atk_type = Game.Config.UnitData.Get(unit_id)?.atk_type ?? 0;
@@ -344,49 +392,6 @@ public class AIEntity
     }
 
     // 移动 更新位置..todo
-    public void DOUpdatePositionJob(float3 p_pos, EntityCommandBuffer ecb)
-    {
-        if (GetState() == 1)
-        {
-            if (agentComponent.unit_id == 1002)
-            {
-                EnemyJob enemyJob = new EnemyJob(p_pos, agent.pos, localTransform.Position, 1.75f, _rot_update, _rot, _prefVelocity);
-                _jobHandle = enemyJob.Schedule(_jobHandle);
-            }
-            else if (agentComponent.unit_id == 1003)
-            {
-                if (!attacking)
-                {
-                    var r1 = p_pos - localTransform.Position;
-                    localTransform.Rotation = Unity.Mathematics.quaternion.LookRotation(r1, Vector3.up);
-                    localTransform.Position = localTransform.Position + localTransform.Forward() * Time.deltaTime * agent.maxSpeed;
-                    ecb.SetComponent(entity, localTransform);
-                }
-                UpdateGrild();
-            }
-
-        }
-    }
-
-    public void DOUpdatePosition(EntityCommandBuffer ecb)
-    {
-        if (GetState() == 1)
-        {
-            if (agentComponent.unit_id == 1002)
-            {
-                _jobHandle.Complete();
-                if (_rot_update[0] == 1)
-                {
-                    localTransform.Rotation = _rot[0];
-                }
-                localTransform.Position = agent.pos;
-                ecb.SetComponent(entity, localTransform);
-                agent.prefVelocity = _prefVelocity[0];
-            }
-            UpdateGrild();
-        }
-    }
-
     //地图管理器.. 便于快速寻找指定区域的单位
     public void UpdateGrild()
     {
@@ -419,10 +424,6 @@ public class AIEntity
 
     public void Dispose()
     {
-        _rot_update.Dispose();
-        _rot.Dispose();
-        _prefVelocity.Dispose();
-
         WorldUnitManager.Instance.Remove(this);
     }
 }
