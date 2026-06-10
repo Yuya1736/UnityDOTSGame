@@ -4,7 +4,6 @@ using Nebukam.ORCA;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
@@ -22,6 +21,7 @@ public partial class EnemySystem : SystemBase
     private Dictionary<int, EnemyBulletConfig> _enemyBulletConfigs;
     private Entity _bulletPrefabEntity;
     private const int MeleeDamage = 1;
+    private EndSimulationEntityCommandBufferSystem _ecbSystem;
 
     protected override void OnCreate()
     {
@@ -30,6 +30,7 @@ public partial class EnemySystem : SystemBase
             ComponentType.ReadWrite<LocalTransform>(),
             ComponentType.ReadOnly<GpuEcsAnimatorStateComponent>()
         );
+        _ecbSystem = World.GetOrCreateSystemManaged<EndSimulationEntityCommandBufferSystem>();
     }
 
     protected override void OnUpdate()
@@ -82,7 +83,7 @@ public partial class EnemySystem : SystemBase
         float deltaTime = SystemAPI.Time.DeltaTime;
 
         var entityManager = World.EntityManager;
-        EntityCommandBuffer ecb = new EntityCommandBuffer(Unity.Collections.Allocator.Temp);
+        var ecb = _ecbSystem.CreateCommandBuffer();
 
         // 批量读取三个组件，替代循环内逐 entity GetComponentData
         var entities   = _agentQuery.ToEntityArray(Allocator.Temp);
@@ -310,8 +311,6 @@ public partial class EnemySystem : SystemBase
             newPositions.Dispose();
         }
 
-        ecb.Playback(entityManager);
-        ecb.Dispose();
     }
 }
 
