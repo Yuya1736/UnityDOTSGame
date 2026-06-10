@@ -56,7 +56,10 @@ public class PickupItem : MonoBehaviour
 
         if (Time.time - _spawnTime >= autoDestroyTime)
         {
-            Collect();
+            // 超时销毁：不触发拾取效果，仅回池
+            _collected = true;
+            gameObject.SetActive(false);
+            PoolSystem.PushGameObject(gameObject.name, gameObject);
             return;
         }
 

@@ -1,8 +1,5 @@
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Mathematics;
-using Unity.Transforms;
-using UnityEngine;
 
 public partial struct EnemySpawnerSystem : ISystem
 {
@@ -19,11 +16,11 @@ public partial struct EnemySpawnerSystem : ISystem
     public float nextSpawnTime_boss;
     private int globalIdCounter;
 
-    public void OnUpdate(ref SystemState state)
+    public void OnUpdate(ref SystemState state) 
     {
         if (!init)
         {
-            if(!SystemAPI.TryGetSingletonEntity<EnemySpawnerComponent>(out spawnerEntity))
+            if (!SystemAPI.TryGetSingletonEntity<EnemySpawnerComponent>(out spawnerEntity))
             {
                 return;
             }
