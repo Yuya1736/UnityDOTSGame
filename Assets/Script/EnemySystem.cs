@@ -82,18 +82,29 @@ public partial class EnemySystem : SystemBase
         float deltaTime = SystemAPI.Time.DeltaTime;
 
         var entityManager = World.EntityManager;
-        var entities = _agentQuery.ToEntityArray(Unity.Collections.Allocator.Temp);
         EntityCommandBuffer ecb = new EntityCommandBuffer(Unity.Collections.Allocator.Temp);
 
-        foreach (Entity entity in entities)
+        // 批量读取三个组件，替代循环内逐 entity GetComponentData
+        var entities   = _agentQuery.ToEntityArray(Allocator.Temp);
+        var agents     = _agentQuery.ToComponentDataArray<AgentComponent>(Allocator.Temp);
+        var transforms = _agentQuery.ToComponentDataArray<LocalTransform>(Allocator.Temp);
+        var animStates = _agentQuery.ToComponentDataArray<GpuEcsAnimatorStateComponent>(Allocator.Temp);
+
+        bool agentsDirty     = false;
+        bool transformsDirty = false;
+
+        for (int i = 0; i < entities.Length; i++)
         {
-            AgentComponent agentComponentData = entityManager.GetComponentData<AgentComponent>(entity);
+            Entity entity             = entities[i];
+            AgentComponent agentComponentData = agents[i];
+
             if (agentComponentData.triggerDie)
             {
                 agentComponentData.triggerDie = false;
                 agentComponentData.state = 3;
                 agentComponentData.dieTimer = 10f;
-                entityManager.SetComponentData(entity, agentComponentData);
+                agents[i] = agentComponentData;
+                agentsDirty = true;
 
                 if (etLst.TryGetValue(agentComponentData.global_id, out AIEntity dyingEntity))
                 {
@@ -115,12 +126,15 @@ public partial class EnemySystem : SystemBase
                 if (agentComponentData.dieTimer <= 0f)
                     ecb.DestroyEntity(entity);
                 else
-                    entityManager.SetComponentData(entity, agentComponentData);
+                {
+                    agents[i] = agentComponentData;
+                    agentsDirty = true;
+                }
                 continue;
             }
             if (agentComponentData.state == 0)
             {
-                var lt = entityManager.GetComponentData<LocalTransform>(entity);
+                var lt = transforms[i];
 
                 float f1 = UnityEngine.Random.Range(-25, 25);
                 float f2 = UnityEngine.Random.Range(-25, 25);
@@ -128,8 +142,10 @@ public partial class EnemySystem : SystemBase
                 lt.Position = playerPos + new float3(f1, 0, f2);
 
                 agentComponentData.state = 1;
-                entityManager.SetComponentData(entity, lt);
-                entityManager.SetComponentData(entity, agentComponentData);
+                agents[i]     = agentComponentData;
+                transforms[i] = lt;
+                agentsDirty     = true;
+                transformsDirty = true;
 
                 var a = _simulation.NewAgent(lt.Position);
                 a.id = agentComponentData.global_id;
@@ -140,11 +156,10 @@ public partial class EnemySystem : SystemBase
                 a.velocity = a.prefVelocity;
                 a.timeHorizon = 3f;
 
-                //切换到移动的动作
                 var xx = new AIEntity(entity, agentComponentData, a, new NativeArray<byte>(1, Allocator.Persistent),
                        new NativeArray<quaternion>(1, Allocator.Persistent),
                        new NativeArray<float3>(1, Allocator.Persistent), lt,
-                       entityManager.GetComponentData<GpuEcsAnimatorStateComponent>(entity), agentComponentData.unit_id);
+                       animStates[i], agentComponentData.unit_id);
                 etLst.Add(xx.GetInstanceID(), xx);
                 WorldUnitManager.Instance.Set(xx);
                 xx.Play(ref entityManager, AnimationIds1001.run.GetHashCode());
@@ -153,35 +168,30 @@ public partial class EnemySystem : SystemBase
             {
                 if (etLst.TryGetValue(agentComponentData.global_id, out var aiEntity))
                 {
-                    // 更新攻击冷却计时器
                     if (aiEntity.attackCooldownTimer > 0)
                         aiEntity.attackCooldownTimer -= deltaTime;
 
                     float d = 1.5f;
-                    //判断与主角的距离
                     if (aiEntity.atk_type == 1 && _enemyBulletConfigs.TryGetValue(aiEntity.unit_id, out var bCfg))
-                    {
                         d = bCfg.attackRange;
-                    }
 
                     if (!aiEntity.attacking && aiEntity.attackCooldownTimer <= 0
                         && math.distancesq(playerPos, aiEntity.localTransform.Position) <= d * d)
                     {
                         aiEntity.attacking = true;
                         aiEntity.hasFiredThisAttack = false;
-                        entityManager.SetComponentData(entity, agentComponentData);
 
                         aiEntity.localTransform.Rotation = Quaternion.LookRotation(playerPos - aiEntity.localTransform.Position);
-                        entityManager.SetComponentData(entity, aiEntity.localTransform);
+                        transforms[i] = aiEntity.localTransform;
+                        transformsDirty = true;
 
                         aiEntity.Play(ref entityManager, AnimationIds1001.attack.GetHashCode());
                         aiEntity.agent.maxSpeed = 0;
                     }
                     else if (aiEntity.attacking)
                     {
-                        var animState = entityManager.GetComponentData<GpuEcsAnimatorStateComponent>(entity);
+                        var animState = animStates[i]; // 直接从批量数组读，无 GetComponentData
 
-                        // 远程怪物：在动画中途发射子弹
                         if (aiEntity.atk_type == 1 && !aiEntity.hasFiredThisAttack
                             && animState.currentNormalizedTime > 0.4f
                             && _enemyBulletConfigs.TryGetValue(aiEntity.unit_id, out var fireCfg))
@@ -194,7 +204,6 @@ public partial class EnemySystem : SystemBase
                                 dir, fireCfg);
                         }
 
-                        // 近战怪物：在动画中途对玩家造成伤害（距离够近才生效）
                         if (aiEntity.atk_type == 0 && !aiEntity.hasFiredThisAttack
                             && animState.currentNormalizedTime > 0.4f
                             && _playerController != null
@@ -204,26 +213,28 @@ public partial class EnemySystem : SystemBase
                             _playerController.TakeDamage(MeleeDamage);
                         }
 
-                        // 动画结束，恢复移动
                         if (animState.currentNormalizedTime > 0.95f)
                         {
                             if (aiEntity.atk_type == 1 && _enemyBulletConfigs.TryGetValue(aiEntity.unit_id, out var cdCfg))
                                 aiEntity.attackCooldownTimer = cdCfg.attackCooldown;
 
-                            agentComponentData.state = 1;
                             aiEntity.agent.maxSpeed = 1.75f;
                             aiEntity.attacking = false;
-                            entityManager.SetComponentData(entity, agentComponentData);
                             aiEntity.Play(ref entityManager, AnimationIds1001.run.GetHashCode());
                         }
                     }
                 }
             }
-            else if (agentComponentData.state == 2)
-            {
-
-            }
         }
+
+        // 只在有修改时才批量写回，替代循环内逐 entity SetComponentData
+        if (agentsDirty)     _agentQuery.CopyFromComponentDataArray(agents);
+        if (transformsDirty) _agentQuery.CopyFromComponentDataArray(transforms);
+
+        agents.Dispose();
+        transforms.Dispose();
+        animStates.Dispose();
+        entities.Dispose();
 
         _simulation.orca.TryComplete();
         _simulation.orca.Schedule(SystemAPI.Time.DeltaTime);
@@ -232,7 +243,6 @@ public partial class EnemySystem : SystemBase
         {
             foreach (var item in etLst)
             {
-                //执行更新位置的job
                 item.Value.DOUpdatePositionJob(playerPos, ecb);
             }
             foreach (var item in etLst)
@@ -242,7 +252,7 @@ public partial class EnemySystem : SystemBase
         }
 
         ecb.Playback(entityManager);
-        entities.Dispose();
+        ecb.Dispose();
     }
 }
 
