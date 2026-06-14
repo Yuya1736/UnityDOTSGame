@@ -42,7 +42,7 @@ Assets/
 ## 快速开始
 
 1. 使用 Unity Hub 以 Unity 2022.3.55f1c1 打开项目文件夹
-2. 打开 `Assets/Classical_city/scene_overcast/` 或 `GPUECSAnimationBaker/Samples/SampleScenes/` 下的示例场景
+2. 打开 `Assets/Classical_city/scene_overcast/`
 3. 进入 Play 模式 — 敌人自动生成并向玩家移动
 
 ### 重新烘焙角色动画
