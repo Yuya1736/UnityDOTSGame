@@ -189,13 +189,13 @@ PrefabInstance:
         type: 3}
       propertyPath: boss
       value: 
-      objectReference: {fileID: 1398789908636313019, guid: cd2b2ca6e0131334296c59313877f267,
+      objectReference: {fileID: 8585156774952332200, guid: b8e2c0c6de3ec234e87f1883ac4f7d4f,
         type: 3}
     - target: {fileID: 8063461916830742015, guid: 8ec87bb9ab3733f42a02ec27a384e35b,
         type: 3}
       propertyPath: enemy
       value: 
-      objectReference: {fileID: 6593749358007139681, guid: e1cf0cc446bf95b4d8e388e11649fb5b,
+      objectReference: {fileID: 8175631460244506578, guid: 7c78d53220e4a1a4897d9e1ecaf1d22b,
         type: 3}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

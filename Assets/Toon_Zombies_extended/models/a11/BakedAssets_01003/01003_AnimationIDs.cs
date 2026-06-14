@@ -1,6 +1,6 @@
 namespace GPUECSAnimationBaker.Engine.AnimatorSystem
 {
-    public enum AnimationIds1001
+    public enum AnimationIds1002
     {
         idle = 0,
         run = 1,

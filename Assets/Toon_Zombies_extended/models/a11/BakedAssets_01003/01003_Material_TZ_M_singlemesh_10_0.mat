@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: 01002_Material_TZ_M_singlemesh_10
+  m_Name: 01003_Material_TZ_M_singlemesh_10_0
   m_Shader: {fileID: -6465566751694194690, guid: de8b10515e8c7b6419b7a2e25ccbf055,
     type: 3}
   m_Parent: {fileID: 0}
@@ -26,7 +26,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _AnimatedBoneMatrices:
-        m_Texture: {fileID: 2800000, guid: 488fee0236af70948aa087fe246e0e7d, type: 2}
+        m_Texture: {fileID: 2800000, guid: 7f36cd861cf1f9a4f838ed062a4176d9, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Base:
@@ -131,7 +131,7 @@ Material:
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _SpecColor: {r: 0.5, g: 0.5, b: 0.5, a: 0.5}
   m_BuildTextureStacks: []
---- !u!114 &7451704219383233927
+--- !u!114 &7000912561830354963
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}
